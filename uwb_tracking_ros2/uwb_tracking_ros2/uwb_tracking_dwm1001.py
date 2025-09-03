@@ -13,7 +13,7 @@ import numpy as np
 
 from rclpy.node import Node
 from .dwm1001_apiCommands import DWM1001_API_COMMANDS
-from geometry_msgs.msg import PoseStamped
+from geometry_msgs.msg import PoseWithCovarianceStamped
 from .KalmanFilter import KalmanFilter as kf
 from .Helpers_KF import initConstVelocityKF 
 
@@ -225,33 +225,38 @@ class dwm1001_localizer(Node):
             tag_id = 0 #str(ser_pose_data[1], 'UTF8')  # IDs in 0 - 15
             tag_macID = str(ser_pose_data[2], 'UTF8')
 
-            ps = PoseStamped()
-            ps.pose.position.x = float(ser_pose_data[i+1].decode('UTF-8'))
-            ps.pose.position.y = float(ser_pose_data[i+2].decode('UTF-8'))
-            ps.pose.position.z = float(ser_pose_data[i+3].decode('UTF-8'))
-            ps.pose.orientation.x = 0.0
-            ps.pose.orientation.y = 0.0
-            ps.pose.orientation.z = 0.0
-            ps.pose.orientation.w = 1.0
+            ps = PoseWithCovarianceStamped()
+            ps.pose.pose.position.x = float(ser_pose_data[i+1].decode('UTF-8'))
+            ps.pose.pose.position.y = float(ser_pose_data[i+2].decode('UTF-8'))
+            ps.pose.pose.position.z = float(ser_pose_data[i+3].decode('UTF-8'))
+            ps.pose.pose.orientation.x = 0.0
+            ps.pose.pose.orientation.y = 0.0
+            ps.pose.pose.orientation.z = 0.0
+            ps.pose.pose.orientation.w = 1.0
             ps.header.stamp = self.node.get_clock().now().to_msg()
-            ps.header.frame_id = tag_macID # TODO: Currently, MAC ID of the Tag is set as a frame ID 
+            ps.header.frame_id = 'dwm1001' # TODO: Currently, MAC ID of the Tag is set as a frame ID 
 
-            raw_pose_xzy = [ps.pose.position.x, ps.pose.position.y, ps.pose.position.z]
+            # Initilize the covariance
+            ps.pose.covariance = [0.0] * 36
+            ps.pose.covariance[0] = 0.01    # Varianza en X
+            ps.pose.covariance[7] = 0.01    # Varianza en Y
+
+            raw_pose_xzy = [ps.pose.pose.position.x, ps.pose.pose.position.y, ps.pose.pose.position.z]
 
             # TODO: PoseStamped() may be replaced with compatible Custom msgs for uniform msg type
             # Assign the PoseStamped msg into CustomTag msg
             tag = CustomTag()
             tag.header = ps.header
-            tag.pose_x = ps.pose.position.x
-            tag.pose_y = ps.pose.position.y
-            tag.pose_z = ps.pose.position.z
-            tag.orientation_x = ps.pose.orientation.x
-            tag.orientation_y = ps.pose.orientation.y
-            tag.orientation_z = ps.pose.orientation.z
-            tag.orientation_z = ps.pose.orientation.w
+            tag.pose_x = ps.pose.pose.position.x
+            tag.pose_y = ps.pose.pose.position.y
+            tag.pose_z = ps.pose.pose.position.z
+            tag.orientation_x = ps.pose.pose.orientation.x
+            tag.orientation_y = ps.pose.pose.orientation.y
+            tag.orientation_z = ps.pose.pose.orientation.z
+            tag.orientation_z = ps.pose.pose.orientation.w
 
             if tag_id not in self.topics:
-                self.topics[tag_id] = self.node.create_publisher(PoseStamped, "/dwm1001/id_" + tag_macID + "/pose", 10)
+                self.topics[tag_id] = self.node.create_publisher(PoseWithCovarianceStamped, "/dwm1001/pose", 10)
                 
                 self.multipleTags.tags_list.append(tag) # append custom Tags into the multiple tag msgs
             
@@ -274,32 +279,37 @@ class dwm1001_localizer(Node):
     # Publish Tag positions using KF 
     def publishTagPoseKF(self, id_int, id_str, kfPoseData):
 
-        ps = PoseStamped()
-        ps.pose.position.x = float(kfPoseData[0])
-        ps.pose.position.y = float(kfPoseData[1])
-        ps.pose.position.z = float(kfPoseData[2])
-        ps.pose.orientation.x = 0.0
-        ps.pose.orientation.y = 0.0
-        ps.pose.orientation.z = 0.0
-        ps.pose.orientation.w = 1.0
+        ps = PoseWithCovarianceStamped()
+        ps.pose.pose.position.x = float(kfPoseData[0])
+        ps.pose.pose.position.y = float(kfPoseData[1])
+        ps.pose.pose.position.z = float(kfPoseData[2])
+        ps.pose.pose.orientation.x = 0.0
+        ps.pose.pose.orientation.y = 0.0
+        ps.pose.pose.orientation.z = 0.0
+        ps.pose.pose.orientation.w = 1.0
         ps.header.stamp = self.node.get_clock().now().to_msg()
-        ps.header.frame_id = id_str # use MAC ID of the Tag as a frame ID for ROS
+        ps.header.frame_id = 'dwm1001' # use MAC ID of the Tag as a frame ID for ROS
+
+        # Initialize the covariance
+        ps.pose.covariance = [0.0] * 36
+        ps.pose.covariance[0] = 0.01
+        ps.pose.covariance[7] = 0.01
 
         if id_int not in self.topics_kf:
-            self.topics_kf[id_int] = self.node.create_publisher(PoseStamped, "/dwm1001/id_" + str(id_str) + "/pose_kf", 10)
+            self.topics_kf[id_int] = self.node.create_publisher(PoseWithCovarianceStamped, "/dwm1001/pose_kf", 10)
 
         self.topics_kf[id_int].publish(ps)
 
         # # Assign the PoseStamped msg into CustomTag msg
         tag_kf = CustomTag()
         tag_kf.header = ps.header
-        tag_kf.pose_x = ps.pose.position.x
-        tag_kf.pose_y = ps.pose.position.y
-        tag_kf.pose_z = ps.pose.position.z
-        tag_kf.orientation_x = ps.pose.orientation.x
-        tag_kf.orientation_y = ps.pose.orientation.y
-        tag_kf.orientation_z = ps.pose.orientation.z
-        tag_kf.orientation_z = ps.pose.orientation.w
+        tag_kf.pose_x = ps.pose.pose.position.x
+        tag_kf.pose_y = ps.pose.pose.position.y
+        tag_kf.pose_z = ps.pose.pose.position.z
+        tag_kf.orientation_x = ps.pose.pose.orientation.x
+        tag_kf.orientation_y = ps.pose.pose.orientation.y
+        tag_kf.orientation_z = ps.pose.pose.orientation.z
+        tag_kf.orientation_z = ps.pose.pose.orientation.w
 
         if id_int not in [tag.header.frame_id for tag in self.multipleTags_kf.tags_list]:
             self.multipleTags_kf.tags_list.append(tag_kf)
