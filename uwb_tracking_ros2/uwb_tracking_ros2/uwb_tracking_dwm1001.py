@@ -113,15 +113,16 @@ class dwm1001_localizer(Node):
                     serDataList = [x.strip() for x in serialReadLine.strip().split(b',')]
 
                     # If getting a tag position
-                    if b"POS" in serDataList[0] :
+                    if b"POS" in serDataList :
+                        i = serDataList.index(b"POS")
                         #self.node.get_logger().info(arrayData)  # just for debug
 
-                        tag_id = int(serDataList[1])  
+                        tag_id = 0 #int(serDataList[1])  
                         # tag_id = str(serDataList[1], 'UTF8')  # IDs in 0 - 15
                         tag_macID = str(serDataList[2], 'UTF8')
-                        t_pose_x = float(serDataList[3])
-                        t_pose_y = float(serDataList[4])
-                        t_pose_z = float(serDataList[5])   
+                        t_pose_x = float(serDataList[i+1].decode('UTF-8'))
+                        t_pose_y = float(serDataList[i+2].decode('UTF-8'))
+                        t_pose_z = float(serDataList[i+3].decode('UTF-8'))   
 
                         # To use this raw pose of DWM1001 as a measurement data in KF
                         t_pose_list = [t_pose_x, t_pose_y, t_pose_z]
@@ -217,16 +218,17 @@ class dwm1001_localizer(Node):
         ser_pose_data = [x.strip() for x in serialData.strip().split(b',')]
 
         # If getting a tag position
-        if b"POS" in ser_pose_data[0] :
+        if b"POS" in ser_pose_data :
+            i = ser_pose_data.index(b"POS")
             #self.node.get_logger().info(arrayData)  # just for debug
 
-            tag_id = str(ser_pose_data[1], 'UTF8')  # IDs in 0 - 15
+            tag_id = 0 #str(ser_pose_data[1], 'UTF8')  # IDs in 0 - 15
             tag_macID = str(ser_pose_data[2], 'UTF8')
 
             ps = PoseStamped()
-            ps.pose.position.x = float(ser_pose_data[3])
-            ps.pose.position.y = float(ser_pose_data[4])
-            ps.pose.position.z = float(ser_pose_data[5])
+            ps.pose.position.x = float(ser_pose_data[i+1].decode('UTF-8'))
+            ps.pose.position.y = float(ser_pose_data[i+2].decode('UTF-8'))
+            ps.pose.position.z = float(ser_pose_data[i+3].decode('UTF-8'))
             ps.pose.orientation.x = 0.0
             ps.pose.orientation.y = 0.0
             ps.pose.orientation.z = 0.0
